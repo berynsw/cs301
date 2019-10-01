@@ -1,0 +1,207 @@
+#lang racket
+
+; prog1.rkt
+; Beryn Staub-Waldenberg
+; Winter 2019
+;
+; This program checks for relational properties on sets and builds composite relations
+
+(define A (list 1 2 3))
+
+; forAll
+;
+; Iterates through a list and checks truth value based on an input lambda function
+;
+; Parameters:
+;  list (list)
+;  fx (function): inserted lambda function to check properties in list ex: does list contain the reverse of a given pair?
+;
+; Returns:
+;  true or false
+
+(define (forAll list fx)
+  (cond
+    [(equal? list null) #t]
+    [(not (fx (car list))) #f]
+    [else (forAll (cdr list) fx)]))
+
+
+; contains?
+;
+; Iterates through a list and checks if it contains an element, x
+;
+; Parameters:
+;  x (element in list)
+;  list (list)
+;
+; Returns:
+;  true or false
+
+(define (contains? x list)
+  (cond
+    [(equal? list null) #f]
+    [(equal? (car list) x) #t]
+    [else (contains? x (cdr list))]))
+;(contains? '() A)
+
+
+; reflexive?
+;
+; Iterates through a list and checks if for all elements, x, in set A does relation R relate x to x
+;
+; Parameters:
+;  A (list): a set
+;  R (list): a relation on A
+;
+; Returns:
+;  true or false
+
+(define (reflexive? A R)
+  (forAll A (lambda (x)
+              (if (contains? (cons x x) R)
+                  #t
+                  #f))))
+;(define R (list (cons 1 1) (cons 3 2) (cons 3 3) (cons 1 2)))
+;(reflexive? A R)
+
+
+; irreflexive?
+;
+; Iterates through a list and checks if for all elements, x, in set A does relation R not relate x to x
+;
+; Parameters:
+;  A (list): a set
+;  R (list): a relation on A
+;
+; Returns:
+;  true or false
+
+(define (irreflexive? A R)
+  (forAll A (lambda (x)
+              (if (contains? (cons x x) R)
+                  #f
+                  #t))))
+;(define R null)
+;(irreflexive? A R)
+
+
+; reversePair?
+;
+; Uses contains? function to check if a list contains the reverse of a given pair, x
+; Helper function for symmetric? and anti-symmetric?
+;
+; Parameters:
+;  list (list)
+;  x (cons pair)
+;
+; Returns:
+;  true or false
+
+(define (reversePair? x list)
+  (contains? (cons (cdr x) (car x)) list))
+
+; irreflexive?
+;
+; Iterates through a list and checks if for all elements, x, in set A does relation R not relate x to x
+;
+; Parameters:
+;  A (list): a set
+;  R (list): a relation on A
+;
+; Returns:
+;  true or false
+;if xRy does yRx?
+(define (symmetric? A R)
+  (forAll R (lambda (x) (reversePair? x R))))
+;(define R null)
+;(symmetric? A R)
+
+
+;if xRy and yRx does x=y?
+(define (anti-symmetric? A R)
+  (forAll R (lambda (x)
+              (if (reversePair? x R)
+                  (equal? (car x) (cdr x))
+                  #t))))
+
+;(define R (list (cons 1 1) (cons 3 2) (cons 2 3)))
+;(anti-symmetric? A R)
+
+
+;if xRy and yRz does xRz?
+(define (transitive? A R)
+  (forAll R (lambda (x)
+              (forAll R (lambda (y)
+                          (if (equal? (car y) (cdr x))
+                              (contains? (cons (car x) (cdr y)) R)
+                              #t))))))
+                                        
+;(define R (list (cons 1 1) (cons 2 2) (cons 1 3)))
+;(transitive? A R)
+
+
+;for all elements in set A is there an edge from one to another in either direction xRy or yRx (including themselves)?
+(define (total? A R)
+  (forAll A (lambda (x)
+              (forAll A (lambda (y)
+                          (or (contains? (cons x y) R) (contains? (cons y x) R)))))))
+
+;(define R (list (cons 1 2) (cons 2 3) (cons 3 1) (cons 1 1) (cons 2 2) (cons 3 3)))
+;(total? A R) 
+
+
+;is R reflexive, symmetric, and transative?
+(define (equivalence? A R)
+  (and (and (reflexive? A R) (symmetric? A R)) (transitive? A R)))
+
+;(define R (list (cons 1 1) (cons 2 2) (cons 3 3)))
+;(equivalence? A R)
+
+
+;is R reflexive, antisymmetric, and transative?
+(define (poset? A R)
+  (and (and (reflexive? A R) (anti-symmetric? A R)) (transitive? A R)))
+
+
+;is R total, antisymmetric, and transative?
+(define (totally-ordered? A R)
+  (and (and (total? A R) (anti-symmetric? A R)) (transitive? A R)))
+
+
+
+;iterates through R2, if second element in R1 pair matches first element in R2 pair: updates composition set
+(define (forAllResult x list [result null])
+  (cond
+    [(equal? list null) result]
+    [(equal? (cdr x) (car (car list)))
+          (forAllResult x (cdr list) (cons (cons (car x) (cdr (car list))) result))]
+    [else (forAllResult x (cdr list) result)]))
+
+;iterates thru R1
+(define (compose A R1 R2 [result null])
+  (cond
+    [(equal? R1 null) result]
+    [(forAllResult (car R1) R2)]  
+    [else (compose A (cdr R1) R2) result]))
+
+
+
+(define R1 (list (cons "a" "b") (cons "b" "a") (cons "c" "c")))
+(define R2 (list (cons "b" "a") (cons "b" "c") (cons "b" "b") (cons "b" "c")))
+(compose A R1 R2)
+;should return ((a,c),(a,a))
+
+
+(define (reflexive-closure A R [result R])
+  (cond
+    [(equal? A null) result]
+    [(not (contains? (cons (car A) (car A)) R))
+          (reflexive-closure (cdr A) R (cons (cons (car A) (car A)) result))]
+    [else (reflexive-closure (cdr A) R result)]))
+;(define R (list (cons 1 2) (cons 3 2) (cons 2 3)))
+;(reflexive-closure A R)
+
+
+(define (symmetric-closure A R)
+  
+          
